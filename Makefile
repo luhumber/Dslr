@@ -10,16 +10,16 @@ DATASETS_DIR := datasets
 ARGS = $(filter-out describe,$(MAKECMDGOALS))
 
 prepare-train:
-	$(PY) parsing/clean_data.py --input $(DATASETS_DIR)/dataset_train.csv --output_dir data/train
+	$(PY) src/parsing/clean_data.py --input $(DATASETS_DIR)/dataset_train.csv --output_dir data/train
 
 prepare-test:
-	$(PY) parsing/clean_data.py --input $(DATASETS_DIR)/dataset_test.csv --output_dir data/test
+	$(PY) src/parsing/clean_data.py --input $(DATASETS_DIR)/dataset_test.csv --output_dir data/test
 
 inspect-train:
-	$(PY) parsing/inspect_artifacts.py --dir data/train --rows 5 --stats
+	$(PY) src/parsing/inspect_artifacts.py --dir data/train --rows 5 --stats
 
 inspect-test:
-	$(PY) parsing/inspect_artifacts.py --dir data/test --rows 5 --stats
+	$(PY) src/parsing/inspect_artifacts.py --dir data/test --rows 5 --stats
 
 clean:
 	rm -rf data
