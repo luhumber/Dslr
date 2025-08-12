@@ -1,7 +1,13 @@
 PY := python3
 DATASETS_DIR := datasets
 
-.PHONY: prepare-train prepare-test inspect-train inspect-test clean
+.PHONY: prepare-train prepare-test inspect-train inspect-test clean describe describe-train describe-test
+
+# Permet de passer un argument positionnel après la cible, ex:
+#   make describe datasets/dataset_test.csv
+# Sans que make essaie de construire ce chemin comme une cible.
+# (On filtre explicitement le nom de la cible « describe »)
+ARGS = $(filter-out describe,$(MAKECMDGOALS))
 
 prepare-train:
 	$(PY) parsing/clean_data.py --input $(DATASETS_DIR)/dataset_train.csv --output_dir data/train
@@ -17,3 +23,22 @@ inspect-test:
 
 clean:
 	rm -rf data
+
+describe:
+	@set -- $(ARGS); \
+	if [ $$# -eq 0 ] && [ -n "$(file)" ]; then set -- "$(file)"; fi; \
+	if [ $$# -eq 0 ]; then \
+		echo "Usage: make describe <csv>  OR  make describe file=PATH/TO.csv"; \
+		exit 2; \
+	fi; \
+	$(PY) describe.py "$$1"
+
+describe-train:
+	$(PY) describe.py $(DATASETS_DIR)/dataset_train.csv
+
+describe-test:
+	$(PY) describe.py $(DATASETS_DIR)/dataset_test.csv
+
+# Règle générique pour empêcher make d'interpréter l'argument comme une cible à construire
+%:
+	@:
