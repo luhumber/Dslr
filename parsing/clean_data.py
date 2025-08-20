@@ -127,7 +127,7 @@ def main():
     # Apprentissage des stats pour standardisation
     stats = fit_scaler(rows, num_cols)
 
-    # Transformation des features + ajout des colonnes passthrough
+    # Transformation des features + ajout des colonnes passthrough (+ label si train)
     X_rows: List[Dict[str, object]] = []
     for r in rows:
         out_row: Dict[str, object] = {}
@@ -136,6 +136,9 @@ def main():
             out_row[c] = r.get(c, "")
         # 2) Features numériques standardisées
         out_row.update(transform_row(r, num_cols, stats))
+        # 3) Label (maison) si présent dans le dataset d'entrée
+        if is_train:
+            out_row[args.label_col] = r.get(args.label_col, "")
         X_rows.append(out_row)
 
     write_csv(str(out_dir / "dataset_clean.csv"), X_rows)
