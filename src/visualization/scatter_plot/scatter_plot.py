@@ -1,28 +1,23 @@
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent))
+
 import numpy as np
 import matplotlib.pyplot as plt
-import pandas as pd
-import seaborn as sns
+from common import (
+    load_data, get_numeric_columns, HOUSE_COLORS,
+    setup_plot_style, create_legend, apply_grid, set_title_and_labels
+)
 
-plt.style.use('seaborn-v0_8-darkgrid')
-sns.set_palette("husl")
-
-data = pd.read_csv('data/train/dataset_clean.csv')
-labels = pd.read_csv('data/train/labels.csv')
-
-numeric_cols = data.select_dtypes(include=[np.number]).columns.tolist()
+data, labels, houses = load_data()
+numeric_cols = get_numeric_columns(data)
+setup_plot_style()
 
 corr_matrix = data[numeric_cols].corr()
 
 upper_triangle = np.triu(corr_matrix, k=1)
 max_corr_idx = np.unravel_index(np.argmax(np.abs(upper_triangle)), upper_triangle.shape)
 feature1, feature2 = numeric_cols[max_corr_idx[0]], numeric_cols[max_corr_idx[1]]
-
-colors = {
-    'Gryffindor': '#E74C3C',
-    'Hufflepuff': '#F39C12',
-    'Ravenclaw': '#3498DB',
-    'Slytherin': '#27AE60'
-}
 
 corr_pairs = []
 for i in range(len(numeric_cols)):
@@ -36,24 +31,6 @@ print("Top 10 most correlated pairs:")
 for i, (abs_corr, corr_val, feat1, feat2) in enumerate(corr_pairs[:10]):
     print(f"{i+1}. {feat1} vs {feat2}: {corr_val:.3f}")
 
-print("[scatter] Showing the single most correlated pair first…")
-plt.figure(figsize=(12, 8), facecolor='white')
-for house in labels['label'].unique():
-    mask = labels['label'] == house
-    plt.scatter(
-        data.loc[mask, feature1], data.loc[mask, feature2],
-        c=colors[house], label=house, alpha=0.7, s=30,
-        edgecolors='white', linewidth=0.5
-    )
-
-plt.xlabel(feature1, fontsize=12, fontweight='bold')
-plt.ylabel(feature2, fontsize=12, fontweight='bold')
-plt.title(f'Most Correlated Features: {feature1} vs {feature2}', fontsize=14, fontweight='bold', pad=20)
-plt.legend(frameon=True, fancybox=True, shadow=True, fontsize=10)
-plt.grid(True, alpha=0.2, linestyle='--')
-plt.tight_layout()
-plt.show(block=True)
-
 fig, axes = plt.subplots(2, 3, figsize=(20, 12), facecolor='white')
 fig.suptitle('Top 6 Most Correlated Feature Pairs', fontsize=16, fontweight='bold', y=0.98)
 axes = axes.flatten()
@@ -63,18 +40,16 @@ for idx, (abs_corr, corr_val, feat1, feat2) in enumerate(corr_pairs[:6]):
     
     ax.set_facecolor('#f8f9fa')
     
-    for house in labels['label'].unique():
+    for house in houses:
         mask = labels['label'] == house
         ax.scatter(data.loc[mask, feat1], data.loc[mask, feat2],
-                  c=colors[house], alpha=0.6, s=25, edgecolors='white', 
+                  c=HOUSE_COLORS[house], alpha=0.6, s=25, edgecolors='white', 
                   linewidth=0.3, label=house if idx == 0 else "")
     
-    ax.set_title(f'{feat1} vs {feat2}\nCorrelation: {corr_val:.3f}', 
-                fontsize=11, fontweight='bold', pad=15)
-    ax.set_xlabel(feat1, fontsize=9, fontweight='bold')
-    ax.set_ylabel(feat2, fontsize=9, fontweight='bold')
+    set_title_and_labels(ax, f'{feat1} vs {feat2}\nCorrelation: {corr_val:.3f}', 
+                        feat1, feat2, title_fontsize=11, label_fontsize=9)
     ax.tick_params(labelsize=8)
-    ax.grid(True, alpha=0.3, linestyle='--')
+    apply_grid(ax)
     
     if abs_corr > 0.8:
         border_color = '#e74c3c'
@@ -88,8 +63,25 @@ for idx, (abs_corr, corr_val, feat1, feat2) in enumerate(corr_pairs[:6]):
         spine.set_linewidth(2)
     
     if idx == 0:
-        ax.legend(fontsize=9, frameon=True, fancybox=True, shadow=True)
+        create_legend(ax, fontsize=9)
 
 plt.tight_layout()
 plt.subplots_adjust(top=0.93)
+plt.show(block=True)
+
+print("[scatter] Showing the single most correlated pair first…")
+fig, ax = plt.subplots(figsize=(12, 8), facecolor='white')
+for house in houses:
+    mask = labels['label'] == house
+    ax.scatter(
+        data.loc[mask, feature1], data.loc[mask, feature2],
+        c=HOUSE_COLORS[house], label=house, alpha=0.7, s=30,
+        edgecolors='white', linewidth=0.5
+    )
+
+set_title_and_labels(ax, f'Most Correlated Features: {feature1} vs {feature2}', 
+                    feature1, feature2, title_fontsize=14, label_fontsize=12)
+create_legend(ax, fontsize=10)
+apply_grid(ax, alpha=0.2)
+plt.tight_layout()
 plt.show(block=True)

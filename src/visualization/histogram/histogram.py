@@ -1,26 +1,17 @@
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent))
+
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
+from common import (
+    load_data, get_numeric_columns, HOUSE_COLORS,
+    setup_plot_style, create_legend, apply_grid, set_title_and_labels
+)
 
-plt.style.use('seaborn-v0_8-darkgrid')
-sns.set_palette("husl")
-
-DATA_PATH = 'data/train/dataset_clean.csv'
-LABELS_PATH = 'data/train/labels.csv'
-
-data = pd.read_csv(DATA_PATH)
-labels = pd.read_csv(LABELS_PATH)
-
-houses = labels['label'].unique()
-colors = {
-	'Gryffindor': '#E74C3C',
-	'Hufflepuff': '#F39C12',
-	'Ravenclaw': '#3498DB',
-	'Slytherin': '#27AE60'
-}
-
-numeric_courses = data.select_dtypes(include=[np.number]).columns.tolist()
+data, labels, houses = load_data()
+numeric_courses = get_numeric_columns(data)
+setup_plot_style()
 
 def hist_prob(values: np.ndarray, bins: int = 20) -> tuple[np.ndarray, np.ndarray]:
 	values = values[np.isfinite(values)]
@@ -113,16 +104,14 @@ if to_plot:
 				bins=bin_edges,
 				alpha=0.55,
 				label=house,
-				color=colors.get(house, None),
+				color=HOUSE_COLORS.get(house, None),
 				edgecolor='white',
 				linewidth=0.5,
 			)
 
-		ax.set_title(f"{course}\nJS_mean={score:.3f}", fontsize=11, fontweight='bold', pad=10)
-		ax.set_xlabel('Score', fontsize=9, fontweight='bold')
-		ax.set_ylabel("# observations", fontsize=9, fontweight='bold')
-		ax.grid(True, alpha=0.3, linestyle='--')
-		ax.legend(fontsize=8, frameon=True, fancybox=True, shadow=False)
+		set_title_and_labels(ax, f"{course}\nJS_mean={score:.3f}", 'Score', "# observations")
+		apply_grid(ax)
+		create_legend(ax, fontsize=8)
 
 	for ax in axes[len(to_plot):]:
 		ax.axis('off')
@@ -156,20 +145,18 @@ if ranked:
 			bins=bin_edges,
 			alpha=0.6,
 			label=house,
-			color=colors.get(house, None),
+			color=HOUSE_COLORS.get(house, None),
 			edgecolor='white',
 			linewidth=0.6,
 		)
 
 	plt.title(
 		f"Most homogeneous course between the four houses: {best_course} (JS_mean={best_score:.3f})",
-		fontsize=13,
-		fontweight='bold',
-		pad=12,
+		fontsize=13, fontweight='bold', pad=12
 	)
 	plt.xlabel('Score', fontsize=10, fontweight='bold')
 	plt.ylabel('# observations', fontsize=10, fontweight='bold')
-	plt.grid(True, alpha=0.3, linestyle='--')
+	apply_grid(plt.gca())
 	plt.legend(frameon=True, fancybox=True, fontsize=9)
 	plt.tight_layout()
 	plt.show()

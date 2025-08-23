@@ -1,29 +1,20 @@
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent))
+
 import numpy as np
-import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+from common import (
+    load_data, get_numeric_columns, HOUSE_COLORS,
+    setup_plot_style
+)
 
-plt.style.use('seaborn-v0_8-darkgrid')
-sns.set_palette("husl")
+data, labels, houses = load_data()
+numeric_cols = get_numeric_columns(data)
+setup_plot_style()
 
-DATA_PATH = 'data/train/dataset_clean.csv'
-LABELS_PATH = 'data/train/labels.csv'
-
-data = pd.read_csv(DATA_PATH)
-labels = pd.read_csv(LABELS_PATH)
-
-houses = labels['label'].unique()
-colors = {
-	'Gryffindor': '#E74C3C',
-	'Hufflepuff': '#F39C12',
-	'Ravenclaw': '#3498DB',
-	'Slytherin': '#27AE60'
-}
-
-numeric_cols = data.select_dtypes(include=[np.number]).columns.tolist()
-
-def anova_fscore(x: np.ndarray, y: pd.Series) -> float:
-	"""One-way ANOVA F-score entre maisons pour une feature x."""
+def anova_fscore(x: np.ndarray, y) -> float:
 	mask = np.isfinite(x)
 	x = x[mask]
 	y = y[mask]
@@ -47,7 +38,7 @@ def anova_fscore(x: np.ndarray, y: pd.Series) -> float:
 	ms_within = ss_within / (n - k)
 	return float(ms_between / ms_within) if ms_within > 0 else 0.0
 
-fscores = {col: anova_fscore(data[col].to_numpy(), labels['label']) for col in numeric_cols}
+fscores = {col: anova_fscore(data[col].to_numpy(), labels['label'].to_numpy()) for col in numeric_cols}
 ranked = sorted(fscores.items(), key=lambda kv: kv[1], reverse=True)
 
 print("Top 10 features by ANOVA F-score (descending):")
@@ -73,7 +64,7 @@ print(", ".join(recommended))
 df_plot = data[top_features].copy()
 df_plot['house'] = labels['label']
 
-g = sns.PairGrid(df_plot, vars=top_features, hue='house', palette=colors, diag_sharey=False)
+g = sns.PairGrid(df_plot, vars=top_features, hue='house', palette=HOUSE_COLORS, diag_sharey=False)
 g.map_upper(sns.scatterplot, s=18, alpha=0.65, edgecolor='white', linewidth=0.3)
 g.map_lower(sns.scatterplot, s=18, alpha=0.65, edgecolor='white', linewidth=0.3)
 g.map_diag(sns.histplot, edgecolor='white', linewidth=0.3)

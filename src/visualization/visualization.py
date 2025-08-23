@@ -36,7 +36,7 @@ def main() -> None:
     }
 
     if args.which == "all":
-        for key in ("scatter", "hist", "pair"):
+        for key in ("hist", "scatter", "pair"):
             print(f"\n=== Running: {key} ===")
             run_script(mapping[key])
         return

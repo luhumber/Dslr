@@ -1,5 +1,6 @@
 PY := python3
 DATASETS_DIR := datasets
+VISUALIZATION_DIR := src/visualization
 
 .PHONY: prepare-train prepare-test inspect-train inspect-test clean describe describe-train describe-test
 
@@ -38,6 +39,18 @@ describe-train:
 
 describe-test:
 	$(PY) describe.py $(DATASETS_DIR)/dataset_test.csv
+
+visualizer:
+	$(PY) $(VISUALIZATION_DIR)/visualization.py all
+
+visualizer-hist:
+	$(PY) $(VISUALIZATION_DIR)/visualization.py hist
+
+visualizer-scatter:
+	$(PY) $(VISUALIZATION_DIR)/visualization.py scatter
+
+visualizer-pair:
+	$(PY) $(VISUALIZATION_DIR)/visualization.py pair
 
 # Règle générique pour empêcher make d'interpréter l'argument comme une cible à construire
 %:
