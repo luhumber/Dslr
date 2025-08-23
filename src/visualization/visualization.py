@@ -30,9 +30,9 @@ def main() -> None:
     args = parser.parse_args()
 
     mapping = {
-        "scatter": "scatter_plot.py",
-        "hist": "histogram.py",
-        "pair": "pair_plot.py",
+        "scatter": "scatter_plot/scatter_plot.py",
+        "hist": "histogram/histogram.py",
+        "pair": "pair_plot/pair_plot.py",
     }
 
     if args.which == "all":

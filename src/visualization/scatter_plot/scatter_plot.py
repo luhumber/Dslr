@@ -24,20 +24,6 @@ colors = {
     'Slytherin': '#27AE60'
 }
 
-plt.figure(figsize=(12, 8), facecolor='white')
-for house in labels['label'].unique():
-    mask = labels['label'] == house
-    plt.scatter(data.loc[mask, feature1], data.loc[mask, feature2],
-                c=colors[house], label=house, alpha=0.7, s=30, edgecolors='white', linewidth=0.5)
-
-plt.xlabel(feature1, fontsize=12, fontweight='bold')
-plt.ylabel(feature2, fontsize=12, fontweight='bold')
-plt.title(f'Most Correlated Features: {feature1} vs {feature2}', fontsize=14, fontweight='bold', pad=20)
-plt.legend(frameon=True, fancybox=True, shadow=True, fontsize=10)
-plt.grid(True, alpha=0.2, linestyle='--')
-plt.tight_layout()
-plt.show()
-
 corr_pairs = []
 for i in range(len(numeric_cols)):
     for j in range(i+1, len(numeric_cols)):
@@ -49,6 +35,24 @@ corr_pairs.sort(reverse=True)
 print("Top 10 most correlated pairs:")
 for i, (abs_corr, corr_val, feat1, feat2) in enumerate(corr_pairs[:10]):
     print(f"{i+1}. {feat1} vs {feat2}: {corr_val:.3f}")
+
+print("[scatter] Showing the single most correlated pair first…")
+plt.figure(figsize=(12, 8), facecolor='white')
+for house in labels['label'].unique():
+    mask = labels['label'] == house
+    plt.scatter(
+        data.loc[mask, feature1], data.loc[mask, feature2],
+        c=colors[house], label=house, alpha=0.7, s=30,
+        edgecolors='white', linewidth=0.5
+    )
+
+plt.xlabel(feature1, fontsize=12, fontweight='bold')
+plt.ylabel(feature2, fontsize=12, fontweight='bold')
+plt.title(f'Most Correlated Features: {feature1} vs {feature2}', fontsize=14, fontweight='bold', pad=20)
+plt.legend(frameon=True, fancybox=True, shadow=True, fontsize=10)
+plt.grid(True, alpha=0.2, linestyle='--')
+plt.tight_layout()
+plt.show(block=True)
 
 fig, axes = plt.subplots(2, 3, figsize=(20, 12), facecolor='white')
 fig.suptitle('Top 6 Most Correlated Feature Pairs', fontsize=16, fontweight='bold', y=0.98)
@@ -88,4 +92,4 @@ for idx, (abs_corr, corr_val, feat1, feat2) in enumerate(corr_pairs[:6]):
 
 plt.tight_layout()
 plt.subplots_adjust(top=0.93)
-plt.show()
+plt.show(block=True)

@@ -22,7 +22,7 @@ inspect-test:
 	$(PY) src/parsing/inspect_artifacts.py --dir data/test --rows 5 --stats
 
 clean:
-	rm -rf data
+	rm -rf data output
 
 describe:
 	@set -- $(ARGS); \
