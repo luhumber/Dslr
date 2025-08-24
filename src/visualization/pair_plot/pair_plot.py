@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 from __future__ import annotations
 
 import argparse
@@ -27,8 +26,6 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 def anova_fscore(x: np.ndarray, y: np.ndarray, houses: np.ndarray) -> float:
-    """Calculate ANOVA F-score for feature discrimination between houses."""
-    # Remove invalid values
     mask = np.isfinite(x)
     x = x[mask]
     y = y[mask]
@@ -36,7 +33,6 @@ def anova_fscore(x: np.ndarray, y: np.ndarray, houses: np.ndarray) -> float:
     if len(x) == 0:
         return 0.0
     
-    # Group data by house
     groups = []
     for house in houses:
         house_mask = y == house
@@ -54,26 +50,22 @@ def anova_fscore(x: np.ndarray, y: np.ndarray, houses: np.ndarray) -> float:
     
     overall_mean = np.mean(x)
     
-    # Between-group sum of squares
     ss_between = sum(n_k * (np.mean(g) - overall_mean) ** 2 for g, n_k in zip(groups, sizes))
     
-    # Within-group sum of squares
     ss_within = sum(np.sum((g - np.mean(g)) ** 2) for g in groups)
     
-    k = len(groups)  # number of groups
-    n = sum(sizes)   # total observations
+    k = len(groups)
+    n = sum(sizes) 
     
     if k <= 1 or n <= k or ss_within == 0:
         return 0.0
     
-    # Calculate F-statistic
     ms_between = ss_between / (k - 1)
     ms_within = ss_within / (n - k)
     
     return float(ms_between / ms_within) if ms_within > 0 else 0.0
 
 def calculate_feature_scores(data: pd.DataFrame, labels: pd.DataFrame, houses: np.ndarray, numeric_cols: list[str]) -> list[tuple[str, float]]:
-    """Calculate ANOVA F-scores for all numeric features."""
     fscores = {}
     y_labels = labels['label'].to_numpy()
     
@@ -81,12 +73,10 @@ def calculate_feature_scores(data: pd.DataFrame, labels: pd.DataFrame, houses: n
         x_values = data[col].to_numpy()
         fscores[col] = anova_fscore(x_values, y_labels, houses)
     
-    # Sort by F-score descending
     ranked = sorted(fscores.items(), key=lambda kv: kv[1], reverse=True)
     return ranked
 
 def deduplicate_by_corr(data: pd.DataFrame, features: list[str], threshold: float = 0.9) -> list[str]:
-    """Remove highly correlated features to reduce redundancy."""
     if len(features) <= 1:
         return features
     
@@ -94,14 +84,12 @@ def deduplicate_by_corr(data: pd.DataFrame, features: list[str], threshold: floa
     corr = data[features].corr().abs()
     
     for f in features:
-        # Check if this feature is highly correlated with any kept feature
         if all(corr.loc[f, k] < threshold for k in kept if k in corr.columns):
             kept.append(f)
     
     return kept
 
 def create_pair_plot(data: pd.DataFrame, labels: pd.DataFrame, features: list[str], show: bool = True) -> None:
-    """Create seaborn pair plot for given features."""
     if len(features) == 0:
         print("No features to plot.")
         return
@@ -109,11 +97,9 @@ def create_pair_plot(data: pd.DataFrame, labels: pd.DataFrame, features: list[st
     if len(features) > 6:
         print(f"Warning: Plotting {len(features)} features may be slow. Consider using --top-k to limit.")
     
-    # Prepare data for seaborn
     df_plot = data[features].copy()
     df_plot['house'] = labels['label']
     
-    # Create pair plot
     g = sns.PairGrid(df_plot, vars=features, hue='house', palette=HOUSE_COLORS, diag_sharey=False)
     g.map_upper(sns.scatterplot, s=18, alpha=0.65, edgecolor='white', linewidth=0.3)
     g.map_lower(sns.scatterplot, s=18, alpha=0.65, edgecolor='white', linewidth=0.3)
@@ -145,7 +131,6 @@ def main() -> int:
         return 2
     
     if args.features:
-        # User specified features
         unknown_features = [f for f in args.features if f not in numeric_cols]
         if unknown_features:
             print(f"[pair_plot][ERR] Unknown features: {', '.join(unknown_features)}", file=sys.stderr)
@@ -155,7 +140,6 @@ def main() -> int:
         selected_features = args.features
         print(f"[pair_plot] Using user-specified features: {', '.join(selected_features)}")
     else:
-        # Automatic feature selection based on ANOVA F-score
         ranked = calculate_feature_scores(data, labels, houses, numeric_cols)
         
         if not ranked or all(score == 0 for _, score in ranked):
@@ -166,11 +150,9 @@ def main() -> int:
         for i, (feat, f) in enumerate(ranked[:10], start=1):
             print(f"{i:2d}. {feat}: F = {f:.3f}")
         
-        # Select top features
         top_features = [feat for feat, _ in ranked[:args.top_k]]
         
         if not args.no_dedup:
-            # Remove highly correlated features
             selected_features = deduplicate_by_corr(data, top_features, args.corr_threshold)
             if len(selected_features) < len(top_features):
                 removed = set(top_features) - set(selected_features)
@@ -181,7 +163,6 @@ def main() -> int:
         print(f"\nRecommended features for analysis (n={len(selected_features)}):")
         print(", ".join(selected_features))
     
-    # Create pair plot
     create_pair_plot(data, labels, selected_features, not args.no_show)
     
     return 0
