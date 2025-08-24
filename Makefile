@@ -1,8 +1,11 @@
-PY := python3
+# Virtualenv-aware Python
+VENV_DIR := .venv
+VENV_PY := $(VENV_DIR)/bin/python
+PY := $(if $(wildcard $(VENV_PY)),$(VENV_PY),python3)
 DATASETS_DIR := datasets
 VISUALIZATION_DIR := src/visualization
 
-.PHONY: prepare-train prepare-test inspect-train inspect-test clean describe describe-train describe-test
+.PHONY: prepare-train prepare-test inspect-train inspect-test clean describe describe-train describe-test histogram deps venv
 
 # Permet de passer un argument positionnel après la cible, ex:
 #   make describe datasets/dataset_test.csv
@@ -32,13 +35,41 @@ describe:
 		echo "Usage: make describe <csv>  OR  make describe file=PATH/TO.csv"; \
 		exit 2; \
 	fi; \
-	$(PY) describe.py "$$1"
+	$(PY) parsing/describe.py "$$1"
 
 describe-train:
-	$(PY) describe.py $(DATASETS_DIR)/dataset_train.csv
+	$(PY) parsing/describe.py $(DATASETS_DIR)/dataset_train.csv
 
 describe-test:
-	$(PY) describe.py $(DATASETS_DIR)/dataset_test.csv
+	$(PY) parsing/describe.py $(DATASETS_DIR)/dataset_test.csv
+
+histogram:
+	@CSV_PATH="$(CSV)"; \
+	if [ -z "$$CSV_PATH" ] && [ -n "$(file)" ]; then CSV_PATH="$(file)"; fi; \
+	if [ -z "$$CSV_PATH" ]; then CSV_PATH="$(word 2,$(MAKECMDGOALS))"; fi; \
+	if [ -z "$$CSV_PATH" ]; then \
+		echo "Usage: make histogram <csv> [OPTS='-f Feature --bins 30 [--no-show]']  OR  make histogram file=PATH/TO.csv"; \
+		echo "Exemples:"; \
+		echo "  make histogram data/train/dataset_clean.csv OPTS=\"-f Astronomy --bins 40 --no-show\""; \
+		echo "  make histogram file=data/train/dataset_clean.csv OPTS=\"--no-show\""; \
+		exit 2; \
+	fi; \
+	echo "Running: $(PY) histogram.py '$$CSV_PATH' $(OPTS)"; \
+	$(PY) histogram.py "$$CSV_PATH" $(OPTS)
+
+# Créer une virtualenv locale
+venv:
+	python3 -m venv $(VENV_DIR)
+	@echo "Virtualenv créée dans $(VENV_DIR). Activez-la avec: source $(VENV_DIR)/bin/activate"
+
+# Installer les dépendances Python dans la venv
+deps:
+	@if [ ! -x "$(VENV_PY)" ]; then \
+		echo "[deps] Aucune venv détectée, création dans $(VENV_DIR)..."; \
+		python3 -m venv $(VENV_DIR); \
+	fi
+	$(VENV_PY) -m pip install --upgrade pip
+	$(VENV_PY) -m pip install -r requirements.txt
 
 visualizer:
 	$(PY) $(VISUALIZATION_DIR)/visualization.py all
