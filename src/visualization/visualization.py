@@ -16,7 +16,13 @@ def run_script(script_rel_path: str) -> None:
         sys.exit(1)
 
     os.chdir(project_root)
-    runpy.run_path(str(script_path), run_name="__main__")
+
+    original_argv = sys.argv
+    try:
+        sys.argv = [script_path.name]
+        runpy.run_path(str(script_path), run_name="__main__")
+    finally:
+        sys.argv = original_argv
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -38,7 +44,15 @@ def main() -> None:
     if args.which == "all":
         for key in ("hist", "scatter", "pair"):
             print(f"\n=== Running: {key} ===")
-            run_script(mapping[key])
+            try:
+                run_script(mapping[key])
+            except SystemExit as e:
+                if e.code != 0:
+                    print(f"[ERROR] {key} failed with exit code {e.code}")
+                    sys.exit(e.code)
+            except Exception as e:
+                print(f"[ERROR] {key} failed: {e}")
+                sys.exit(1)
         return
 
     run_script(mapping[args.which])
