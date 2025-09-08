@@ -23,25 +23,17 @@ def predict_house(student_features, weights):
         probability = sigmoid(score)
         scores[house] = probability
     
-    best_house = None
-    best_score = 0
-    
-    for house, probability in scores.items():
-        if probability > best_score:
-            best_score = probability
-            best_house = house
-    
-    return best_house
+    return max(scores.items(), key=lambda x: x[1])[0]
 
 def load_and_preprocess_test_data(test_file, scaler):
     df = pd.read_csv(test_file)
     
     selected_features = [
-        'Arithmancy',
+        'Charms',
         'Defense Against the Dark Arts',
+        'Ancient Runes',
         'Herbology',
-        'Potions',
-        'Transfiguration'
+        'Divination'
     ]
     
     features = df[selected_features]
@@ -52,19 +44,13 @@ def load_and_preprocess_test_data(test_file, scaler):
 
 def make_predictions(test_file, model_file):
     weights, scaler = load_model(model_file)
-    
     features_scaled = load_and_preprocess_test_data(test_file, scaler)
     
     predictions = []
-    
-    for i, student_features in enumerate(features_scaled):
+    for student_features in features_scaled:
         predicted_house = predict_house(student_features, weights)
         predictions.append(predicted_house)
-        
-        if i < 5:
-            print(f"Student {i+1}: {predicted_house}")
     
-    print(f"\nPredictions completed for {len(predictions)} students!")
     
     results_df = pd.DataFrame({
         'Index': range(len(predictions)),
@@ -72,9 +58,35 @@ def make_predictions(test_file, model_file):
     })
     
     results_df.to_csv('output/houses.csv', index=False)
-    print("Predictions saved to 'houses.csv'")
+    print(f"Predictions saved to 'output/houses.csv'")
+    
+    return predictions
+
+def predict_all_students():
+    weights, scaler = load_model('output/model.pkl')
+    features_scaled = load_and_preprocess_test_data('datasets/dataset_train.csv', scaler)
+    
+    predictions = []
+    for student_features in features_scaled:
+        predicted_house = predict_house(student_features, weights)
+        predictions.append(predicted_house)
+    
+    with open('data/train/labels.csv', 'r') as f:
+        true_labels = [line.strip() for line in f.readlines()[1:]]
+    
+    correct = sum(1 for pred, true in zip(predictions, true_labels) if pred == true)
+    accuracy = correct / len(predictions) * 100
+    print(f"Accuracy: {accuracy:.2f}% ({correct}/{len(predictions)})")
+    
+    results_df = pd.DataFrame({
+        'Index': range(len(predictions)),
+        'Hogwarts House': predictions
+    })
+    
+    results_df.to_csv('output/houses.csv', index=False)
+    print(f"Predictions saved to 'output/houses.csv'")
     
     return predictions
 
 if __name__ == "__main__":
-    predictions = make_predictions('datasets/dataset_test.csv', 'output/model.pkl')
+    predictions = predict_all_students()

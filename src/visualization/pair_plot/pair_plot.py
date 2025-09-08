@@ -7,6 +7,13 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 import pandas as pd
+try:
+    import plotly.express as px
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+    PLOTLY_AVAILABLE = True
+except ImportError:
+    PLOTLY_AVAILABLE = False
 
 sys.path.append(str(Path(__file__).parent.parent))
 from common import (
@@ -19,7 +26,7 @@ def parse_args() -> argparse.Namespace:
         description="Generate pair plots for feature analysis and selection."
     )
     parser.add_argument("-f", "--features", nargs="+", help="Specific features to plot (ex: --features 'Astronomy' 'Herbology')")
-    parser.add_argument("--top-k", type=int, default=5, help="Number of top features by F-score (default: 5)")
+    parser.add_argument("--top-k", type=int, default=100, help="Number of top features by F-score (default: 100)")
     parser.add_argument("--corr-threshold", type=float, default=0.9, help="Correlation threshold for deduplication (default: 0.9)")
     parser.add_argument("--no-show", action="store_true", help="Don't display Matplotlib windows")
     parser.add_argument("--no-dedup", action="store_true", help="Skip correlation-based deduplication")
@@ -94,25 +101,108 @@ def create_pair_plot(data: pd.DataFrame, labels: pd.DataFrame, features: list[st
         print("No features to plot.")
         return
     
-    if len(features) > 6:
-        print(f"Warning: Plotting {len(features)} features may be slow. Consider using --top-k to limit.")
+    if not PLOTLY_AVAILABLE:
+        print("Plotly not available. Install with: pip install plotly")
+        return
     
     df_plot = data[features].copy()
     df_plot['house'] = labels['label']
     
-    g = sns.PairGrid(df_plot, vars=features, hue='house', palette=HOUSE_COLORS, diag_sharey=False)
-    g.map_upper(sns.scatterplot, s=18, alpha=0.65, edgecolor='white', linewidth=0.3)
-    g.map_lower(sns.scatterplot, s=18, alpha=0.65, edgecolor='white', linewidth=0.3)
-    g.map_diag(sns.histplot, edgecolor='white', linewidth=0.3)
-    g.add_legend()
+    house_color_map = HOUSE_COLORS
     
-    title = f'Pair Plot of Features (n={len(features)})'
-    g.figure.suptitle(title, fontsize=14, fontweight='bold', y=1.02)
+    n_features = len(features)
+    
+    spacing = max(0.01, min(0.05, 0.3 / n_features))
+    
+    fig = make_subplots(
+        rows=n_features, cols=n_features,
+        subplot_titles=features if n_features <= 8 else None,
+        vertical_spacing=spacing, horizontal_spacing=spacing
+    )
+    
+    houses = df_plot['house'].unique()
+    
+    def add_scatter_plot(fig, x_data, y_data, house, row, col, show_legend=False):
+        fig.add_trace(
+            go.Scatter(
+                x=x_data,
+                y=y_data,
+                mode='markers',
+                name=house,
+                legendgroup=house,
+                showlegend=show_legend,
+                marker=dict(
+                    color=house_color_map[house],
+                    size=3,
+                    opacity=0.6
+                )
+            ),
+            row=row, col=col
+        )
+    
+    legend_shown = set()
+    
+    house_data_dict = {house: df_plot[df_plot['house'] == house] for house in houses}
+    
+    for i, feat_x in enumerate(features):
+        for j, feat_y in enumerate(features):
+            row, col = i + 1, j + 1
+            
+            if i == j:
+                for house in houses:
+                    house_data = house_data_dict[house]
+                    show_legend = house not in legend_shown
+                    if show_legend:
+                        legend_shown.add(house)
+                    
+                    fig.add_trace(
+                        go.Histogram(
+                            x=house_data[feat_x],
+                            name=house,
+                            legendgroup=house,
+                            showlegend=show_legend,
+                            marker_color=house_color_map[house],
+                            opacity=0.7,
+                            nbinsx=15
+                        ),
+                        row=row, col=col
+                    )
+            else:
+                for house in houses:
+                    house_data = house_data_dict[house]
+                    show_legend = house not in legend_shown
+                    if show_legend:
+                        legend_shown.add(house)
+                    add_scatter_plot(
+                        fig, house_data[feat_x], house_data[feat_y], 
+                        house, row, col, show_legend
+                    )
+    
+    plot_size = 200
+    font_size = max(8, min(12, 80 / n_features))
+    
+    fig.update_layout(
+        title=f'Interactive Pair Plot (n={len(features)} features)',
+        width=plot_size * n_features,
+        height=plot_size * n_features,
+        font={'size': font_size},
+        title_x=0.5,
+        barmode='overlay',
+        showlegend=True
+    )
+    
+    for i in range(n_features):
+        fig.update_xaxes(title_text=features[i], row=n_features, col=i+1)
+        fig.update_yaxes(title_text=features[i], row=i+1, col=1)
+    
+    fig.update_xaxes(showgrid=False, zeroline=False, showticklabels=False, ticks="")
+    fig.update_yaxes(showgrid=False, zeroline=False, showticklabels=False, ticks="")
     
     if show:
-        plt.show()
+        fig.show()
     else:
-        plt.close()
+        fig.write_html("pair_plot.html")
+        print("Interactive plot saved as pair_plot.html")
 
 def main() -> int:
     args = parse_args()
