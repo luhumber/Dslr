@@ -26,17 +26,14 @@ clean:
 describe:
 	@set -- $(ARGS); \
 	if [ $$# -eq 0 ] && [ -n "$(file)" ]; then set -- "$(file)"; fi; \
-	if [ $$# -eq 0 ]; then \
-		echo "Usage: make describe <csv>  OR  make describe file=PATH/TO.csv"; \
-		exit 2; \
-	fi; \
-	$(PY) parsing/describe.py "$$1"
+	if [ $$# -eq 0 ]; then set -- "$(DATASETS_DIR)/dataset_train.csv"; fi; \
+	$(PY) src/parsing/describe.py "$$1"
 
 describe-train:
-	$(PY) parsing/describe.py $(DATASETS_DIR)/dataset_train.csv
+	$(PY) src/parsing/describe.py $(DATASETS_DIR)/dataset_train.csv
 
 describe-test:
-	$(PY) parsing/describe.py $(DATASETS_DIR)/dataset_test.csv
+	$(PY) src/parsing/describe.py $(DATASETS_DIR)/dataset_test.csv
 
 venv:
 	python3 -m venv $(VENV_DIR)
