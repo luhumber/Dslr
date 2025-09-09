@@ -56,6 +56,8 @@ def read_csv(path: str) -> Tuple[List[str], List[Dict[str, str]]]:
 def detect_numeric_columns(cols: List[str], rows: List[Dict[str, str]]) -> List[str]:
     num_cols: List[str] = []
     for c in cols:
+        if c.lower() == "index":
+            continue
         total_non_empty = 0
         total_numeric = 0
         for r in rows:
@@ -67,7 +69,7 @@ def detect_numeric_columns(cols: List[str], rows: List[Dict[str, str]]) -> List[
                 total_numeric += 1
         if total_non_empty > 0 and total_numeric == total_non_empty:
             num_cols.append(c)
-    return num_cols
+    return num_cols 
 
 
 def percentile_linear(sorted_xs: List[float], p: float) -> float:

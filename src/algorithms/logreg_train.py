@@ -96,11 +96,11 @@ def train_logistic_regression(features, target, learning_rate=0.001, max_iterati
 
         weights = weights - learning_rate * gradient
 
-        if i % 500 == 0:
-            print(f"Iteration {i}, Cost: {cost:.6f}")
+        if i % 1000 == 0:
+            print(f"  Iteration {i}, Cost: {cost:.6f}")
 
         if abs(prev_cost - cost) < tolerance:
-            print(f"Converged at iteration {i}, Cost: {cost:.6f}")
+            print(f"  Converged at iteration {i}, Cost: {cost:.6f}")
             break
         prev_cost = cost
 
@@ -122,69 +122,22 @@ def main():
         return 1
     
     try:
-        result = load_and_preprocess_data(args.dataset_path, validation_split=0.2, full_dataset=False)
-        if len(result) != 5:
-            print("Error: Unexpected return format from load_and_preprocess_data", file=sys.stderr)
-            return 1
-        features_train, target_train_binary, features_val, target_val_binary, scaler = result
+        features_train, target_train_binary, scaler = load_and_preprocess_data(args.dataset_path, full_dataset=True)
     except Exception as e:
         print(f"Error loading dataset: {e}", file=sys.stderr)
         return 1
 
-    print(f"Training set shape: {features_train.shape}")
-    print(f"Validation set shape: {features_val.shape}")
-    print(f"Training features means: {features_train.mean(axis=0)}")
-    print(f"Training features stds: {features_train.std(axis=0)}")
-
-    print("Training logistic regression for each house...")
+    print(f"Training model on {features_train.shape[0]} samples ({features_train.shape[1]} features)")
 
     houses = ['Gryffindor', 'Slytherin', 'Hufflepuff', 'Ravenclaw']
     weights = {}
 
     for house in houses:
-        print(f"Training for {house}...")
-
+        print(f"Training {house}...")
         weights[house] = train_logistic_regression(
             features_train,
             target_train_binary[house]
         )
-
-        print(f"Training complete for {house}.")
-
-    print("Training complete for all houses.")
-
-    print("\n=== Testing on validation set ===")
-    from collections import Counter
-
-    val_predictions = []
-    for student_features in features_val:
-        features_with_bias = np.concatenate(([1], student_features))
-        scores = {}
-        
-        for house in houses:
-            score = features_with_bias.dot(weights[house])
-            probability = sigmoid(score)
-            scores[house] = probability
-        
-        best_house = max(scores.items(), key=lambda x: x[1])[0]
-        val_predictions.append(best_house)
-
-    val_target_true = []
-    for i in range(len(features_val)):
-        for house in houses:
-            if target_val_binary[house].iloc[i] == 1:
-                val_target_true.append(house)
-                break
-
-    correct = sum(1 for pred, true in zip(val_predictions, val_target_true) if pred == true)
-    val_accuracy = correct / len(val_predictions) * 100
-
-    print(f"Validation Accuracy: {correct}/{len(val_predictions)} = {val_accuracy:.2f}%")
-
-    pred_counts = Counter(val_predictions)
-    print("Validation prediction distribution:")
-    for house, count in pred_counts.items():
-        print(f"  {house}: {count} ({count/len(val_predictions)*100:.1f}%)")
 
     output_dir = os.path.dirname(args.output)
     if output_dir and not os.path.exists(output_dir):

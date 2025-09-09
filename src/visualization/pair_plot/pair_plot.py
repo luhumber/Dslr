@@ -27,9 +27,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("-f", "--features", nargs="+", help="Specific features to plot (ex: --features 'Astronomy' 'Herbology')")
     parser.add_argument("--top-k", type=int, default=100, help="Number of top features by F-score (default: 100)")
-    parser.add_argument("--corr-threshold", type=float, default=0.9, help="Correlation threshold for deduplication (default: 0.9)")
     parser.add_argument("--no-show", action="store_true", help="Don't display Matplotlib windows")
-    parser.add_argument("--no-dedup", action="store_true", help="Skip correlation-based deduplication")
     return parser.parse_args()
 
 def anova_fscore(x: np.ndarray, y: np.ndarray, houses: np.ndarray) -> float:
@@ -83,18 +81,6 @@ def calculate_feature_scores(data: pd.DataFrame, labels: pd.DataFrame, houses: n
     ranked = sorted(fscores.items(), key=lambda kv: kv[1], reverse=True)
     return ranked
 
-def deduplicate_by_corr(data: pd.DataFrame, features: list[str], threshold: float = 0.9) -> list[str]:
-    if len(features) <= 1:
-        return features
-    
-    kept = []
-    corr = data[features].corr().abs()
-    
-    for f in features:
-        if all(corr.loc[f, k] < threshold for k in kept if k in corr.columns):
-            kept.append(f)
-    
-    return kept
 
 def create_pair_plot(data: pd.DataFrame, labels: pd.DataFrame, features: list[str], show: bool = True) -> None:
     if len(features) == 0:
@@ -242,16 +228,7 @@ def main() -> int:
         
         top_features = [feat for feat, _ in ranked[:args.top_k]]
         
-        if not args.no_dedup:
-            selected_features = deduplicate_by_corr(data, top_features, args.corr_threshold)
-            if len(selected_features) < len(top_features):
-                removed = set(top_features) - set(selected_features)
-                print(f"\nRemoved highly correlated features (r > {args.corr_threshold}): {', '.join(removed)}")
-        else:
-            selected_features = top_features
-        
-        print(f"\nRecommended features for analysis (n={len(selected_features)}):")
-        print(", ".join(selected_features))
+        selected_features = top_features
     
     create_pair_plot(data, labels, selected_features, not args.no_show)
     

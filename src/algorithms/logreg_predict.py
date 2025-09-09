@@ -64,19 +64,12 @@ def make_predictions(test_file, model_file):
 
 def predict_all_students():
     weights, scaler = load_model('output/model.pkl')
-    features_scaled = load_and_preprocess_test_data('datasets/dataset_train.csv', scaler)
+    features_scaled = load_and_preprocess_test_data('datasets/dataset_test.csv', scaler)
     
     predictions = []
     for student_features in features_scaled:
         predicted_house = predict_house(student_features, weights)
         predictions.append(predicted_house)
-    
-    with open('data/train/labels.csv', 'r') as f:
-        true_labels = [line.strip() for line in f.readlines()[1:]]
-    
-    correct = sum(1 for pred, true in zip(predictions, true_labels) if pred == true)
-    accuracy = correct / len(predictions) * 100
-    print(f"Accuracy: {accuracy:.2f}% ({correct}/{len(predictions)})")
     
     results_df = pd.DataFrame({
         'Index': range(len(predictions)),
