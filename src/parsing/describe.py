@@ -1,19 +1,3 @@
-#!/usr/bin/env python3
-"""
-Script: describe.py
-But: Afficher des statistiques descriptives (Count, Mean, Std, Min, 25%, 50%, 75%, Max)
-pour toutes les colonnes numériques d'un CSV, sans utiliser de fonctions "magiques"
-(type: mean, std, min, max, percentile, describe, etc.).
-
-Utilisation:
-  python3 describe.py <chemin_vers_csv>
-
-Notes:
-- Ignore les colonnes non numériques et les cellules vides.
-- Ignore les valeurs non finies (inf, -inf, NaN).
-- Affiche un tableau transposé: lignes = statistiques, colonnes = features numériques.
-- Sortie sur stdout; messages d'erreur sur stderr avec codes de sortie non-zéro si nécessaire.
-"""
 from __future__ import annotations
 
 import argparse
@@ -43,7 +27,6 @@ def file_is_readable(path: str) -> bool:
 
 
 def safe_float(s: str) -> float | None:
-    """Convertit en float si possible et fini; sinon retourne None."""
     if s is None:
         return None
     t = str(s).strip()
@@ -71,7 +54,6 @@ def read_csv(path: str) -> Tuple[List[str], List[Dict[str, str]]]:
 
 
 def detect_numeric_columns(cols: List[str], rows: List[Dict[str, str]]) -> List[str]:
-    """Conserve les colonnes dont toutes les valeurs non vides sont numériques finies."""
     num_cols: List[str] = []
     for c in cols:
         total_non_empty = 0
@@ -94,7 +76,6 @@ def percentile_linear(sorted_xs: List[float], p: float) -> float:
         return float("nan")
     if n == 1:
         return sorted_xs[0]
-    # Index fractionnaire: (n-1)*p, interpolation linéaire
     k = (n - 1) * p
     f = int(math.floor(k))
     c = int(math.ceil(k))
@@ -107,7 +88,6 @@ def describe_for_cols(rows: List[Dict[str, str]], cols: List[str]) -> Dict[str, 
     stats: Dict[str, Dict[str, float]] = {}
     for c in cols:
         xs: List[float] = []
-        # collecte + compte manuel
         for r in rows:
             x = safe_float(r.get(c, ""))
             if x is not None:
@@ -126,7 +106,6 @@ def describe_for_cols(rows: List[Dict[str, str]], cols: List[str]) -> Dict[str, 
             }
             continue
 
-        # Somme/moyenne manuelles (sans sum())
         s = 0.0
         i = 0
         while i < n:
@@ -134,7 +113,6 @@ def describe_for_cols(rows: List[Dict[str, str]], cols: List[str]) -> Dict[str, 
             i += 1
         mean = s / n
 
-        # Variance/écart-type (population, ddof=0) manuels
         var_sum = 0.0
         i = 0
         while i < n:
@@ -144,7 +122,6 @@ def describe_for_cols(rows: List[Dict[str, str]], cols: List[str]) -> Dict[str, 
         var = var_sum / n
         std = math.sqrt(var)
 
-        # Min/Max manuels (sans min()/max())
         mn = xs[0]
         mx = xs[0]
         i = 1
@@ -156,7 +133,6 @@ def describe_for_cols(rows: List[Dict[str, str]], cols: List[str]) -> Dict[str, 
                 mx = v
             i += 1
 
-        # Quantiles: tri puis interpolation linéaire
         xs_sorted = sorted(xs)
         p25 = percentile_linear(xs_sorted, 0.25)
         p50 = percentile_linear(xs_sorted, 0.50)
@@ -192,10 +168,8 @@ def format_table(cols: List[str], stats: Dict[str, Dict[str, float]]) -> str:
         "Max": "max",
     }
 
-    # Pré-calcul des valeurs formatées
     vals_by_row = {label: [fmt(stats[c][key_map[label]]) for c in cols] for label in ROW_LABELS}
 
-    # Largeurs par colonne pour aligner
     col_widths: List[int] = []
     for i, c in enumerate(cols):
         max_val_len = 0
@@ -212,13 +186,11 @@ def format_table(cols: List[str], stats: Dict[str, Dict[str, float]]) -> str:
             row_label_width = len(l)
 
     lines: List[str] = []
-    # En-tête: alignée au-dessus des colonnes de valeurs
     header = (" " * (row_label_width + 1)) + " ".join(
         c.ljust(col_widths[i]) for i, c in enumerate(cols)
     )
     lines.append(header)
 
-    # Corps
     for label in ROW_LABELS:
         line = label.ljust(row_label_width) + " " + " ".join(
             vals_by_row[label][i].ljust(col_widths[i]) for i in range(len(cols))
@@ -228,7 +200,6 @@ def format_table(cols: List[str], stats: Dict[str, Dict[str, float]]) -> str:
 
 
 def write_csv_result(input_csv: str, cols: List[str], stats: Dict[str, Dict[str, float]], out_dir: str = "data") -> str | None:
-    """Écrit le tableau (stat x features) au format CSV dans out_dir/describe_<basename>.csv"""
     try:
         os.makedirs(out_dir, exist_ok=True)
     except OSError as e:
@@ -257,7 +228,6 @@ def write_csv_result(input_csv: str, cols: List[str], stats: Dict[str, Dict[str,
     try:
         with open(out_path, "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
-            # En-tête CSV: première colonne = stat, puis toutes les features
             w.writerow(["stat", *cols])
             for label in ROW_LABELS:
                 row = [label]
@@ -284,7 +254,6 @@ def main(argv: List[str]) -> int:
         return 2
     if not rows:
         print("[describe][WARN] CSV vide ou sans lignes de données.")
-        # Rien à décrire, mais ce n'est pas une erreur bloquante
         return 0
 
     num_cols = detect_numeric_columns(cols, rows)

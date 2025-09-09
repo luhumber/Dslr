@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import csv
 import json
 import math
@@ -73,7 +72,7 @@ def transform_row(row: Dict[str, str], num_cols: List[str], stats: Dict[str, Dic
     for c in num_cols:
         v = row.get(c, "")
         if not is_float(v):
-            x = stats[c]["mean"]  # imputation par moyenne
+            x = stats[c]["mean"]
         else:
             x = float(v)
         out[c] = (x - stats[c]["mean"]) / stats[c]["std"]
@@ -82,11 +81,9 @@ def transform_row(row: Dict[str, str], num_cols: List[str], stats: Dict[str, Dic
 
 def write_csv(path: str, rows: List[Dict[str, object]]):
     if not rows:
-        # Crée un fichier vide avec juste l'en-tête si possible
         with open(path, "w", newline='', encoding="utf-8") as f:
             pass
         return
-    # Conserver l'ordre d'insertion des clés du premier dict
     with open(path, "w", newline='', encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
         w.writeheader()
@@ -114,36 +111,28 @@ def main():
 
     is_train = args.label_col in fields
 
-    # Détection des colonnes numériques (majoritairement numériques)
     exclude = list(args.exclude_cols)
     if is_train:
         exclude.append(args.label_col)
-    # Ne pas considérer les colonnes passthrough comme features numériques
     for c in args.passthrough_cols:
         if c not in exclude:
             exclude.append(c)
     num_cols = detect_numeric_columns(rows, fields, exclude=exclude)
 
-    # Apprentissage des stats pour standardisation
     stats = fit_scaler(rows, num_cols)
 
-    # Transformation des features + ajout des colonnes passthrough (+ label si train)
     X_rows: List[Dict[str, object]] = []
     for r in rows:
         out_row: Dict[str, object] = {}
-        # 1) Colonnes d'identification copiées telles quelles (si présentes)
         for c in args.passthrough_cols:
             out_row[c] = r.get(c, "")
-        # 2) Features numériques standardisées
         out_row.update(transform_row(r, num_cols, stats))
-        # 3) Label (maison) si présent dans le dataset d'entrée
         if is_train:
             out_row[args.label_col] = r.get(args.label_col, "")
         X_rows.append(out_row)
 
     write_csv(str(out_dir / "dataset_clean.csv"), X_rows)
 
-    # Écriture des labels (si train)
     meta: Dict[str, object] = {
         "numeric_columns": num_cols,
         "scaler": stats,
@@ -159,7 +148,6 @@ def main():
         meta["label_col"] = args.label_col
         meta["classes"] = classes
 
-        # Split train/val déterministe
         idxs = list(range(len(rows)))
         random.Random(args.seed).shuffle(idxs)
         n_val = int(len(idxs) * args.val_ratio)
@@ -167,7 +155,6 @@ def main():
         (out_dir / "split" / "train_idx.txt").write_text("\n".join(map(str, train_idx)), encoding="utf-8")
         (out_dir / "split" / "val_idx.txt").write_text("\n".join(map(str, val_idx)), encoding="utf-8")
 
-    # Sauvegarde des métadonnées
     with open(out_dir / "metadata.json", "w", encoding="utf-8") as f:
         json.dump(meta, f, indent=2)
 

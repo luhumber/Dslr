@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import argparse
 import csv
 import json
@@ -26,7 +25,6 @@ def read_all_csv_rows(path: pathlib.Path) -> Tuple[List[str], List[Dict[str, str
 
 
 def compute_stats_numeric(cols: List[str], rows: List[Dict[str, str]]) -> Dict[str, Dict[str, float]]:
-    # Population mean/std, computed manually
     sums: Dict[str, float] = {c: 0.0 for c in cols}
     counts: Dict[str, int] = {c: 0 for c in cols}
     mins: Dict[str, float] = {c: float('inf') for c in cols}
@@ -95,7 +93,6 @@ def main():
         print(f"[inspect] Fichier introuvable: {x_path}")
         return 2
 
-    # Lire metadata si présente
     meta: Dict = {}
     if meta_path.exists():
         try:
@@ -103,7 +100,6 @@ def main():
         except Exception as e:
             print(f"[inspect] Impossible de lire metadata.json: {e}")
 
-    # Aperçu X
     cols, head_rows = read_csv_rows(x_path, limit=args.rows)
     all_cols, all_rows = read_all_csv_rows(x_path)
 
@@ -115,11 +111,9 @@ def main():
     if all_cols:
         print(preview_rows(all_cols, head_rows, args.rows))
 
-    # Stats optionnelles
     if args.stats and all_cols:
         print("\n=== Stats rapides (recalculées) ===")
         stats = compute_stats_numeric(all_cols, all_rows)
-        # Affiche seulement quelques colonnes pour lisibilité
         show_cols = all_cols[: min(8, len(all_cols))]
         for c in show_cols:
             s = stats[c]
@@ -127,12 +121,10 @@ def main():
         if len(all_cols) > len(show_cols):
             print(f"... ({len(all_cols) - len(show_cols)} colonnes supplémentaires)")
 
-    # Labels
     if y_path.exists():
         _, y_rows = read_all_csv_rows(y_path)
         print("\n=== Labels (labels.csv) ===")
         print(f"Lignes labels: {len(y_rows)}")
-        # Distribution
         dist: Dict[str, int] = {}
         for r in y_rows:
             y = r.get("label", "")
@@ -142,17 +134,14 @@ def main():
             print(f"- {k}: {dist[k]} ({100.0*dist[k]/total:.1f}%)")
         if meta.get("classes"):
             print(f"Classes (metadata): {', '.join(meta['classes'])}")
-        # Validation longueur
         if len(y_rows) != len(all_rows):
             print(f"[inspect][WARN] Nombre de labels ({len(y_rows)}) != nombre de lignes X ({len(all_rows)})")
 
-    # Split
     if train_idx_path.exists() and val_idx_path.exists():
         train_idx = [int(x) for x in train_idx_path.read_text(encoding='utf-8').strip().splitlines() if x.strip()]
         val_idx = [int(x) for x in val_idx_path.read_text(encoding='utf-8').strip().splitlines() if x.strip()]
         print("\n=== Split ===")
         print(f"Train: {len(train_idx)} | Val: {len(val_idx)}")
-        # Checks basiques
         inter = set(train_idx).intersection(val_idx)
         if inter:
             print(f"[inspect][WARN] Indices communs entre train et val: {len(inter)}")
@@ -160,7 +149,6 @@ def main():
         if maxi >= len(all_rows):
             print(f"[inspect][WARN] Index max {maxi} >= nb lignes {len(all_rows)}")
 
-    # Metadata résumé
     if meta:
         print("\n=== Metadata ===")
         for k in ["label_col", "classes"]:

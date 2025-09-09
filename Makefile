@@ -1,16 +1,11 @@
-# Virtualenv-aware Python
 VENV_DIR := .venv
 VENV_PY := $(VENV_DIR)/bin/python
 PY := $(if $(wildcard $(VENV_PY)),$(VENV_PY),python3)
 DATASETS_DIR := datasets
 VISUALIZATION_DIR := src/visualization
 
-.PHONY: prepare-train prepare-test inspect-train inspect-test clean describe describe-train describe-test histogram deps venv
+.PHONY: prepare-train prepare-test inspect-train inspect-test clean describe describe-train describe-test histogram deps venv train-model train-custom predict-model
 
-# Permet de passer un argument positionnel après la cible, ex:
-#   make describe datasets/dataset_test.csv
-# Sans que make essaie de construire ce chemin comme une cible.
-# (On filtre explicitement le nom de la cible « describe »)
 ARGS = $(filter-out describe,$(MAKECMDGOALS))
 
 prepare-train:
@@ -43,26 +38,10 @@ describe-train:
 describe-test:
 	$(PY) parsing/describe.py $(DATASETS_DIR)/dataset_test.csv
 
-histogram:
-	@CSV_PATH="$(CSV)"; \
-	if [ -z "$$CSV_PATH" ] && [ -n "$(file)" ]; then CSV_PATH="$(file)"; fi; \
-	if [ -z "$$CSV_PATH" ]; then CSV_PATH="$(word 2,$(MAKECMDGOALS))"; fi; \
-	if [ -z "$$CSV_PATH" ]; then \
-		echo "Usage: make histogram <csv> [OPTS='-f Feature --bins 30 [--no-show]']  OR  make histogram file=PATH/TO.csv"; \
-		echo "Exemples:"; \
-		echo "  make histogram data/train/dataset_clean.csv OPTS=\"-f Astronomy --bins 40 --no-show\""; \
-		echo "  make histogram file=data/train/dataset_clean.csv OPTS=\"--no-show\""; \
-		exit 2; \
-	fi; \
-	echo "Running: $(PY) histogram.py '$$CSV_PATH' $(OPTS)"; \
-	$(PY) histogram.py "$$CSV_PATH" $(OPTS)
-
-# Créer une virtualenv locale
 venv:
 	python3 -m venv $(VENV_DIR)
 	@echo "Virtualenv créée dans $(VENV_DIR). Activez-la avec: source $(VENV_DIR)/bin/activate"
 
-# Installer les dépendances Python dans la venv
 deps:
 	@if [ ! -x "$(VENV_PY)" ]; then \
 		echo "[deps] Aucune venv détectée, création dans $(VENV_DIR)..."; \
@@ -83,6 +62,19 @@ visualizer-scatter:
 visualizer-pair:
 	$(PY) $(VISUALIZATION_DIR)/visualization.py pair
 
-# Règle générique pour empêcher make d'interpréter l'argument comme une cible à construire
+train-model:
+	$(PY) src/algorithms/logreg_train.py $(DATASETS_DIR)/dataset_train.csv
+
+train-custom:
+	@if [ -z "$(dataset)" ]; then \
+		echo "Usage: make train-custom dataset=PATH/TO/DATASET.csv"; \
+		echo "   or: make train-custom dataset=PATH/TO/DATASET.csv output=PATH/TO/MODEL.pkl"; \
+		exit 1; \
+	fi
+	$(PY) src/algorithms/logreg_train.py $(dataset) $(if $(output),--output $(output))
+
+predict-model:
+	$(PY) src/algorithms/logreg_predict.py
+
 %:
 	@:
