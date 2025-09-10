@@ -129,6 +129,14 @@ def main():
 
     write_csv(str(out_dir / "dataset_clean.csv"), X_rows)
 
+    # Génération du fichier labels.csv pour le dataset d'entraînement
+    if is_train:
+        labels = [r.get(args.label_col, "") for r in rows]
+        with open(out_dir / "labels.csv", "w", newline='', encoding="utf-8") as f:
+            w = csv.writer(f)
+            w.writerow(["label"])
+            w.writerows([[y] for y in labels])
+
     print(f"[clean_data] Terminé. Dataset nettoyé écrit dans: {out_dir / 'dataset_clean.csv'}")
     return 0
 
