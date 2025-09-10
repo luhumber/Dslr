@@ -1,3 +1,25 @@
+"""
+Script describe.py - Analyse statistique descriptive
+
+Calcule et affiche des statistiques descriptives pour toutes les colonnes numériques
+d'un dataset CSV, sans utiliser de bibliothèques externes.
+
+Statistiques calculées :
+- Count : Nombre de valeurs non-nulles
+- Mean : Moyenne arithmétique
+- Std : Écart-type (population)
+- Min : Valeur minimale
+- 25%, 50%, 75% : Quartiles (percentiles)
+- Max : Valeur maximale
+- Variance : Variance de population
+- Range : Étendue (Max - Min)
+- IQR : Écart interquartile (Q3 - Q1)
+- Skewness : Asymétrie de la distribution
+- Kurtosis : Aplatissement de la distribution (excess kurtosis)
+
+Usage : python describe.py dataset.csv
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -7,7 +29,7 @@ import os
 import sys
 from typing import Dict, List, Tuple
 
-ROW_LABELS = ["Count", "Mean", "Std", "Min", "25%", "50%", "75%", "Max"]
+ROW_LABELS = ["Count", "Mean", "Std", "Min", "25%", "50%", "75%", "Max", "Variance", "Range", "IQR", "Skewness", "Kurtosis"]
 
 
 def parse_args(argv: List[str]) -> argparse.Namespace:
@@ -86,6 +108,35 @@ def percentile_linear(sorted_xs: List[float], p: float) -> float:
     return sorted_xs[f] * (c - k) + sorted_xs[c] * (k - f)
 
 
+def calculate_skewness(xs: List[float], mean: float, std: float) -> float:
+    """Calcule l'asymétrie (skewness) de la distribution"""
+    if std == 0 or len(xs) == 0:
+        return float("nan")
+    
+    n = len(xs)
+    skew_sum = 0.0
+    for x in xs:
+        normalized = (x - mean) / std
+        skew_sum += normalized ** 3
+    
+    return skew_sum / n
+
+
+def calculate_kurtosis(xs: List[float], mean: float, std: float) -> float:
+    """Calcule le kurtosis (aplatissement) de la distribution"""
+    if std == 0 or len(xs) == 0:
+        return float("nan")
+    
+    n = len(xs)
+    kurt_sum = 0.0
+    for x in xs:
+        normalized = (x - mean) / std
+        kurt_sum += normalized ** 4
+    
+    # Kurtosis excess (soustrait 3 pour avoir kurtosis normale = 0)
+    return (kurt_sum / n) - 3.0
+
+
 def describe_for_cols(rows: List[Dict[str, str]], cols: List[str]) -> Dict[str, Dict[str, float]]:
     stats: Dict[str, Dict[str, float]] = {}
     for c in cols:
@@ -105,9 +156,15 @@ def describe_for_cols(rows: List[Dict[str, str]], cols: List[str]) -> Dict[str, 
                 "p50": float("nan"),
                 "p75": float("nan"),
                 "max": float("nan"),
+                "variance": float("nan"),
+                "range": float("nan"),
+                "iqr": float("nan"),
+                "skewness": float("nan"),
+                "kurtosis": float("nan"),
             }
             continue
 
+        # Calcul de la moyenne
         s = 0.0
         i = 0
         while i < n:
@@ -115,15 +172,17 @@ def describe_for_cols(rows: List[Dict[str, str]], cols: List[str]) -> Dict[str, 
             i += 1
         mean = s / n
 
+        # Calcul de la variance et écart-type
         var_sum = 0.0
         i = 0
         while i < n:
             d = xs[i] - mean
             var_sum += d * d
             i += 1
-        var = var_sum / n
-        std = math.sqrt(var)
+        variance = var_sum / n  # Variance de population
+        std = math.sqrt(variance)
 
+        # Min et Max
         mn = xs[0]
         mx = xs[0]
         i = 1
@@ -135,10 +194,17 @@ def describe_for_cols(rows: List[Dict[str, str]], cols: List[str]) -> Dict[str, 
                 mx = v
             i += 1
 
+        # Percentiles
         xs_sorted = sorted(xs)
         p25 = percentile_linear(xs_sorted, 0.25)
         p50 = percentile_linear(xs_sorted, 0.50)
         p75 = percentile_linear(xs_sorted, 0.75)
+        
+        # Statistiques dérivées
+        data_range = mx - mn
+        iqr = p75 - p25
+        skewness = calculate_skewness(xs, mean, std)
+        kurtosis = calculate_kurtosis(xs, mean, std)
 
         stats[c] = {
             "count": float(n),
@@ -149,6 +215,11 @@ def describe_for_cols(rows: List[Dict[str, str]], cols: List[str]) -> Dict[str, 
             "p50": p50,
             "p75": p75,
             "max": mx,
+            "variance": variance,
+            "range": data_range,
+            "iqr": iqr,
+            "skewness": skewness,
+            "kurtosis": kurtosis,
         }
     return stats
 
@@ -157,7 +228,13 @@ def format_table(cols: List[str], stats: Dict[str, Dict[str, float]]) -> str:
     def fmt(x: float) -> str:
         if isinstance(x, float) and math.isnan(x):
             return "nan"
-        return f"{x:.6f}"
+        # Format différent selon la magnitude du nombre
+        if abs(x) >= 1000:
+            return f"{x:.2f}"
+        elif abs(x) >= 1:
+            return f"{x:.4f}"
+        else:
+            return f"{x:.6f}"
 
     key_map = {
         "Count": "count",
@@ -168,34 +245,41 @@ def format_table(cols: List[str], stats: Dict[str, Dict[str, float]]) -> str:
         "50%": "p50",
         "75%": "p75",
         "Max": "max",
+        "Variance": "variance",
+        "Range": "range",
+        "IQR": "iqr",
+        "Skewness": "skewness",
+        "Kurtosis": "kurtosis",
     }
 
     vals_by_row = {label: [fmt(stats[c][key_map[label]]) for c in cols] for label in ROW_LABELS}
 
+    # Calcul des largeurs de colonnes avec limite max pour éviter des colonnes trop larges
     col_widths: List[int] = []
+    max_col_width = 15  # Largeur maximale par colonne
     for i, c in enumerate(cols):
         max_val_len = 0
         for label in ROW_LABELS:
             vlen = len(vals_by_row[label][i])
             if vlen > max_val_len:
                 max_val_len = vlen
-        width = max(len(c), max_val_len)
+        width = min(max(len(c), max_val_len), max_col_width)
         col_widths.append(width)
 
-    row_label_width = 0
-    for l in ROW_LABELS:
-        if len(l) > row_label_width:
-            row_label_width = len(l)
+    row_label_width = max(len(l) for l in ROW_LABELS)
 
     lines: List[str] = []
+    
+    # En-tête avec séparateur
     header = (" " * (row_label_width + 1)) + " ".join(
-        c.ljust(col_widths[i]) for i, c in enumerate(cols)
+        c[:col_widths[i]].ljust(col_widths[i]) for i, c in enumerate(cols)
     )
     lines.append(header)
+    lines.append("-" * len(header))
 
     for label in ROW_LABELS:
         line = label.ljust(row_label_width) + " " + " ".join(
-            vals_by_row[label][i].ljust(col_widths[i]) for i in range(len(cols))
+            vals_by_row[label][i][:col_widths[i]].ljust(col_widths[i]) for i in range(len(cols))
         )
         lines.append(line)
     return "\n".join(lines)
@@ -220,6 +304,11 @@ def write_csv_result(input_csv: str, cols: List[str], stats: Dict[str, Dict[str,
         "50%": "p50",
         "75%": "p75",
         "Max": "max",
+        "Variance": "variance",
+        "Range": "range",
+        "IQR": "iqr",
+        "Skewness": "skewness",
+        "Kurtosis": "kurtosis",
     }
 
     def fmt(x: float) -> str:

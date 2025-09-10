@@ -1,7 +1,5 @@
 import csv
-import json
 import math
-import random
 import argparse
 import pathlib
 import sys
@@ -97,12 +95,10 @@ def main():
     ap.add_argument("--label_col", default="Hogwarts House", help="Nom de la colonne label (présente uniquement en train)")
     ap.add_argument("--exclude_cols", nargs="*", default=["Index"], help="Colonnes à exclure du traitement numérique")
     ap.add_argument("--passthrough_cols", nargs="*", default=["First Name", "Last Name"], help="Colonnes à recopier telles quelles dans dataset_clean.csv")
-    ap.add_argument("--seed", type=int, default=42, help="Graine pour le split train/val")
-    ap.add_argument("--val_ratio", type=float, default=0.15, help="Part de validation (0-1)")
     args = ap.parse_args()
 
     out_dir = pathlib.Path(args.output_dir)
-    (out_dir / "split").mkdir(parents=True, exist_ok=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     fields, rows = read_csv(args.input)
     if len(rows) == 0:
@@ -133,32 +129,7 @@ def main():
 
     write_csv(str(out_dir / "dataset_clean.csv"), X_rows)
 
-    meta: Dict[str, object] = {
-        "numeric_columns": num_cols,
-        "scaler": stats,
-        "passthrough_columns": args.passthrough_cols,
-    }
-    if is_train:
-        labels = [r.get(args.label_col, "") for r in rows]
-        with open(out_dir / "labels.csv", "w", newline='', encoding="utf-8") as f:
-            w = csv.writer(f)
-            w.writerow(["label"])
-            w.writerows([[y] for y in labels])
-        classes = sorted({y for y in labels if y != ""})
-        meta["label_col"] = args.label_col
-        meta["classes"] = classes
-
-        idxs = list(range(len(rows)))
-        random.Random(args.seed).shuffle(idxs)
-        n_val = int(len(idxs) * args.val_ratio)
-        val_idx, train_idx = sorted(idxs[:n_val]), sorted(idxs[n_val:])
-        (out_dir / "split" / "train_idx.txt").write_text("\n".join(map(str, train_idx)), encoding="utf-8")
-        (out_dir / "split" / "val_idx.txt").write_text("\n".join(map(str, val_idx)), encoding="utf-8")
-
-    with open(out_dir / "metadata.json", "w", encoding="utf-8") as f:
-        json.dump(meta, f, indent=2)
-
-    print(f"[clean_data] Terminé. Artefacts écrits dans: {out_dir}")
+    print(f"[clean_data] Terminé. Dataset nettoyé écrit dans: {out_dir / 'dataset_clean.csv'}")
     return 0
 
 
